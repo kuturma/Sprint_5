@@ -3,18 +3,21 @@ import pytest
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from locators import Locators
-from data_generate import generate_email, generate_name, generate_password
 
+from locators.locators import Locators
+from data_generate_and_static_data.data_generate_and_static_data import generate_email, generate_name, generate_password, generate_short_password, UserData 
+from .conftest import driver
 
-class TestStellarBurgers:
-    BASE_URL = "https://stellarburgers.nomoreparties.site"
+BASE_URL = "https://stellarburgers.nomoreparties.site"
+
+class TestRegistration:
+    
 
 #              РЕГИСТРАЦИЯ
 
 # Проверяем успешную регистрацию с помощью генератора случайных данных
     def test_successful_registration(self, driver):
-        driver.get(f"{self.BASE_URL}/register")
+        driver.get(f"{BASE_URL}/register")
         name = generate_name()
         email = generate_email()
         password = generate_password()
@@ -30,15 +33,16 @@ class TestStellarBurgers:
         WebDriverWait(driver, 5).until(EC.element_to_be_clickable(Locators.BUTTON_REGISTER)).click()
 
         # Проверяем, что перешли на страницу входа (есть поле email)
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located(Locators.INPUT_LOGIN_EMAIL))
+        assert WebDriverWait(driver, 5).until(EC.presence_of_element_located(Locators.INPUT_LOGIN_EMAIL))
+
 
 
     # Проверяем регистрацию с коротким паролем
     def test_registration_with_short_password(self, driver):
-        driver.get(f"{self.BASE_URL}/register")
+        driver.get(f"{BASE_URL}/register")
         name = generate_name()
         email = generate_email()
-        password = "123"
+        password = generate_short_password()
 
         # Заполняем форму регистрации через поиск элементов на странице регистрации
         driver.find_element(*Locators.INPUT_NAME).send_keys(name)
@@ -52,6 +56,7 @@ class TestStellarBurgers:
         assert WebDriverWait(driver, 5).until(EC.visibility_of_element_located(Locators.ERROR_PASSWORD))
 
 
+class TestLoginFromDifferentPages:
 #               ВХОД
 
 # Проверяем успешный вход в систему из различных страниц сайта
@@ -63,11 +68,8 @@ class TestStellarBurgers:
         "forgot-password" # Страница восстановления пароля
         ])
     def test_login_from_various_paths(self, driver, path):
-        email = "kuturmin@mail.ru"  # Используем существующую почту
-        password = "kuturmin"       # Существующий пароль
-        
         # Переход на страницы через указанные пути
-        driver.get(f"{self.BASE_URL}/{path}")
+        driver.get(f"{BASE_URL}/{path}")
 
         # Переходим на страницу входа через главную страницу
         if path == "":
@@ -80,26 +82,27 @@ class TestStellarBurgers:
             driver.find_element(*Locators.LINK_LOGIN_FROM_FORGOT).click()
 
         # Заполняем форму входа используя явное ожидание
-        WebDriverWait(driver, 5).until(EC.element_to_be_clickable(Locators.INPUT_LOGIN_EMAIL)).send_keys(email)
-        WebDriverWait(driver, 5).until(EC.element_to_be_clickable(Locators.INPUT_LOGIN_PASSWORD)).send_keys(password)
+        WebDriverWait(driver, 5).until(EC.element_to_be_clickable(Locators.INPUT_LOGIN_EMAIL)).send_keys(*UserData.email)
+        WebDriverWait(driver, 5).until(EC.element_to_be_clickable(Locators.INPUT_LOGIN_PASSWORD)).send_keys(*UserData.password)
         WebDriverWait(driver, 5).until(EC.element_to_be_clickable(Locators.BUTTON_LOGIN)).click()
 
         # Проверяем наличие кнопки "Оформить заказ" после входа
         assert WebDriverWait(driver, 5).until(EC.visibility_of_element_located(Locators.BUTTON_ORDER))
 
 
+class TestPersonalAccount:
 #         ПЕРЕХОД В ЛИЧНЫЙ КАБИНЕТ
 
 # Проверяем переход в личный кабинет по кнопке в шапке сайта "Личный кабинет"
     def test_go_to_personal_account(self, driver):
-        driver.get(self.BASE_URL)
+        driver.get(BASE_URL)
 
         # Ждём и кликаем по кнопке "Личный кабинет" в шапке сайта
         WebDriverWait(driver, 5).until(EC.element_to_be_clickable(Locators.LINK_LOGIN_HEADER)).click()
         
         #Заполняем форму входа через поиск элементов на странице авторизации
-        driver.find_element(*Locators.INPUT_LOGIN_EMAIL).send_keys("kuturmin@mail.ru")
-        driver.find_element(*Locators.INPUT_LOGIN_PASSWORD).send_keys("kuturmin")
+        driver.find_element(*Locators.INPUT_LOGIN_EMAIL).send_keys(*UserData.email)
+        driver.find_element(*Locators.INPUT_LOGIN_PASSWORD).send_keys(*UserData.password)
 
         # Нажимаем кнопку "Войти"
         driver.find_element(*Locators.BUTTON_LOGIN).click()
@@ -111,20 +114,21 @@ class TestStellarBurgers:
         assert WebDriverWait(driver, 5).until(EC.visibility_of_element_located(Locators.BUTTON_LOGOUT))
 
 
+class TestReturnToConstructor:
 #            ПЕРЕХОД ИЗ ЛИЧНОГО КАБИНЕТА В КОНСТРУКТОР
 
 # Проверяем переход из личного кабинета в конструктор по кнопке "Конструктор" и логотипу сайта
 # Создаём параметризацю для перехода по разным элементам на странице из личного кабинета
     @pytest.mark.parametrize("element", [Locators.LINK_CONSTRUCTOR, Locators.LOGO])
     def test_return_to_constructor(self, driver, element):
-        driver.get(self.BASE_URL)
+        driver.get(BASE_URL)
 
         # Кликаем по кнопке "Личный кабинет" в шапке сайта
         driver.find_element(*Locators.LINK_LOGIN_HEADER).click()
 
         # Заполняем форму входа через поиск элементов на странице авторизации
-        driver.find_element(*Locators.INPUT_LOGIN_EMAIL).send_keys("kuturmin@mail.ru")
-        driver.find_element(*Locators.INPUT_LOGIN_PASSWORD).send_keys("kuturmin")
+        driver.find_element(*Locators.INPUT_LOGIN_EMAIL).send_keys(*UserData.email)
+        driver.find_element(*Locators.INPUT_LOGIN_PASSWORD).send_keys(*UserData.password)
 
         # Нажимаем кнопку "Войти"
         driver.find_element(*Locators.BUTTON_LOGIN).click()
@@ -136,20 +140,21 @@ class TestStellarBurgers:
         WebDriverWait(driver, 5).until(EC.element_to_be_clickable(element)).click()
 
         # Проверяем, что перешли на главную
-        WebDriverWait(driver, 5).until(EC.url_to_be(f"{self.BASE_URL}/"))
-        assert driver.current_url == f"{self.BASE_URL}/"
+        WebDriverWait(driver, 5).until(EC.url_to_be(f"{BASE_URL}/"))
+        assert driver.current_url == f"{BASE_URL}/"
 
 
+class TestLogout:
 #               ВЫХОД ИЗ АККАУНТА
     def test_logout(self, driver):
-        driver.get(self.BASE_URL)
+        driver.get(BASE_URL)
 
         # Переходим в авторизацию через кнопку в шапке сайта "Личный кабинет"
         driver.find_element(*Locators.LINK_LOGIN_HEADER).click()
 
         # Заполняем форму входа через поиск элементов на странице авторизации
-        driver.find_element(*Locators.INPUT_LOGIN_EMAIL).send_keys("kuturmin@mail.ru")
-        driver.find_element(*Locators.INPUT_LOGIN_PASSWORD).send_keys("kuturmin")
+        driver.find_element(*Locators.INPUT_LOGIN_EMAIL).send_keys(*UserData.email)
+        driver.find_element(*Locators.INPUT_LOGIN_PASSWORD).send_keys(*UserData.password)
 
         # Нажимаем кнопку "Войти"
         driver.find_element(*Locators.BUTTON_LOGIN).click()
@@ -163,7 +168,7 @@ class TestStellarBurgers:
         # Проверяем, что появилась кнопка "Войти" на экране
         assert WebDriverWait(driver, 5).until(EC.visibility_of_element_located(Locators.BUTTON_LOGIN))
 
-
+class TestTabConstructor:
 #              РАЗДЕЛ "КОНСТРУКТОР"
 
 # Проверяем активное состояние вкладок "Булки", "Соусы", "Начинки" в конструкторе
@@ -174,7 +179,7 @@ class TestStellarBurgers:
         Locators.TAB_FILLINGS
     ])
     def test_constructor_sections(self, driver, tab_locator):
-        driver.get(self.BASE_URL)
+        driver.get(BASE_URL)
 
         # Если проверяем "Булки", то сначала переключаемся на "Соусы", чтобы сбросить активность
         if tab_locator == Locators.TAB_BUNS:
